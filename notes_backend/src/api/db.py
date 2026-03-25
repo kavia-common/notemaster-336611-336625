@@ -29,7 +29,9 @@ def _build_postgres_url_from_parts() -> str:
     user = os.getenv("POSTGRES_USER", "")
     password = os.getenv("POSTGRES_PASSWORD", "")
     db = os.getenv("POSTGRES_DB", "")
-    port = os.getenv("POSTGRES_PORT", "")
+    # notes_database's Postgres server commonly runs on 5000 (see db_connection.txt),
+    # while the container "port" may be used for a separate DB visualizer HTTP service.
+    port = os.getenv("POSTGRES_PORT", "").strip() or "5000"
 
     # Host is not explicitly provided by the platform contract; in container networks it's often "localhost".
     # If this turns out incorrect, prefer using POSTGRES_URL which is authoritative.
@@ -51,7 +53,13 @@ def get_db_config() -> DbConfig:
     - Errors: ValueError if configuration is missing/invalid.
     - Side effects: none.
     """
-    url = os.getenv("POSTGRES_URL", "").strip()
+    # Support common conventions across environments.
+    # Prefer POSTGRES_URL (platform contract), but also accept DATABASE_URL/DB_URL.
+    url = (
+        os.getenv("POSTGRES_URL", "").strip()
+        or os.getenv("DATABASE_URL", "").strip()
+        or os.getenv("DB_URL", "").strip()
+    )
     if not url:
         # Fallback path; still requires the discrete vars to be present.
         url = _build_postgres_url_from_parts()
